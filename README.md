@@ -3,28 +3,47 @@ This is a simple proc macro library for serializing/deserializing strictly sized
 
 ## Example
 ```rust
-#[derive(AsciiPack)]
+#[derive(AsciiPack, PartialEq, Eq, Debug, Default)]
 struct TestFormat {
-    #[pack(size = 3)]
-    pub number: u32,
+    #[pack(size = 4)]
+    pub padded_number: u32,
+
+    #[pack_ignore]
+    pub ignored_field: Option::<usize>,
 
     #[pack(size = 6, pad_left = ' ')]
     pub handling: String,
 
-    #[pack(size = 9)]
-    pub ip: IpAddr,
-
-    #[pack(size = 3)]
+    #[pack(size = 2)]
     pub line_ending1: String,
+
+    #[pack(size = 9)]
+    pub nested_struct: Inner,
 
     #[pack(size = 10)]
     pub timestamp: u64,
 }
 
-const TEST_ASCII: &str = "012  TEST127.0.0.1\r\n1697774260";
+#[derive(AsciiPack, PartialEq, Eq, Debug, Default)]
+pub struct Inner {
+    #[pack(size = 5, pad_left = ' ')]
+    pub my_string: String,
+
+    #[pack(size = 4)]
+    pub my_number: usize
+}
+
+[#test]
+fn test() {
+    const TEST_ASCII: &str = "0012  TEST\r\n0123INNER01231697774260";
+
+    // converting from the ascii format into a struct
     let unpacked = TestFormat::from_ascii(TEST_ASCII).unwrap();
 
-    assert_eq!(unpacked.number, 12);
-    
+    assert_eq!(unpacked.padded_number, 12);
+    assert_eq!(unpacked.line_ending1, "\r\n");
+
+    // converting back to the packed ascii format
     assert_eq!(unpacked.to_ascii().unwrap(), TEST_ASCII);
+}
 ```
