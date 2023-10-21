@@ -1,4 +1,3 @@
-#![feature(never_type)]
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::quote;

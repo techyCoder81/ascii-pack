@@ -1,5 +1,3 @@
-#![feature(never_type)]
-
 use ascii_pack::AsciiPack;
 use std::str::FromStr;
 
