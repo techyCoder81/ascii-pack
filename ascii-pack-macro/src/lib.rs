@@ -181,19 +181,10 @@ pub fn derive_helper_attr(item: TokenStream) -> TokenStream {
     };
 
     let tokens = quote! {
-        
-        #[derive(Debug)]
-        pub struct MessageFormatParseError {
-            error: String
-        }
+        use ::ascii_pack::MessageFormatParseError;
 
-        trait AsciiPack {
-            fn from_ascii(input: &str) -> Result<#struc, MessageFormatParseError>;
-            fn to_ascii(&self) -> Result<String, MessageFormatParseError>;
-        }
-
-        impl AsciiPack for #struc {
-            fn from_ascii(input: &str) -> Result<#struc, MessageFormatParseError> {
+        impl ::ascii_pack::AsciiPack for #struc {
+            fn from_ascii(input: &str) -> Result<Self, MessageFormatParseError> {
                 #from_ascii_tokens
             }
             

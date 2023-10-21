@@ -1,6 +1,6 @@
 #![feature(never_type)]
-use std::str::FromStr;
 
+use std::str::FromStr;
 use ascii_pack::AsciiPack;
 
 #[derive(Debug, Default, Eq, PartialEq)]

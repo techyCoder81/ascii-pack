@@ -3,7 +3,7 @@
 version = 3
 
 [[package]]
-name = "ascii-pack"
+name = "ascii-pack-macro"
 version = "0.1.0"
 dependencies = [
  "prettyplease",
