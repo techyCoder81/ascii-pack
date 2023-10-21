@@ -8,3 +8,4 @@ crate-type = ["rlib", "dylib"]
 
 [dependencies]
 ascii-pack-macro = { path = "../ascii-pack-macro" }
+thiserror = "1.0.50"

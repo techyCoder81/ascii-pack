@@ -1,26 +1,29 @@
 #![feature(never_type)]
 
-use std::str::FromStr;
 use ascii_pack::AsciiPack;
+use std::str::FromStr;
 
 #[derive(Debug, Default, Eq, PartialEq)]
 struct PrimitiveBool(bool);
-impl ToString for PrimitiveBool {
-    fn to_string(&self) -> String {
-        match self {
-            PrimitiveBool(true) => "1".to_owned(),
-            PrimitiveBool(false) => "0".to_owned()
+
+impl AsciiPack for PrimitiveBool {
+    fn from_ascii(input: &str) -> ascii_pack::Result<Self>
+    where
+        Self: Sized,
+    {
+        match input {
+            "0" => Ok(PrimitiveBool(false)),
+            "1" => Ok(PrimitiveBool(true)),
+            other => Err(AsciiPackError::Unpack(
+                "failed to parse primitive bool!".to_owned(),
+            )),
         }
     }
-}
 
-impl FromStr for PrimitiveBool {
-    type Err = !;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "0" => Ok(PrimitiveBool(false)),
-            _ => Ok(PrimitiveBool(true))
+    fn to_ascii(&self) -> ascii_pack::Result<String> {
+        match self {
+            PrimitiveBool(true) => Ok("1".to_owned()),
+            PrimitiveBool(false) => Ok("0".to_owned()),
         }
     }
 }
@@ -31,7 +34,7 @@ struct TestFormat {
     pub padded_number: u32,
 
     #[pack_ignore]
-    pub ignored_field: Option::<usize>,
+    pub ignored_field: Option<usize>,
 
     #[pack(size = 6, pad_left = ' ')]
     pub handling: String,
@@ -64,15 +67,15 @@ fn simple_test() {
     assert_eq!(unpacked.to_ascii().unwrap(), TEST_ASCII);
 
     // ToString and FromStr should thinly wrap `to_ascii()` and `from_ascii()`
-    assert_eq!(TestFormat::from_str(TEST_ASCII).unwrap(), unpacked);
-    assert_eq!(unpacked.to_ascii().unwrap(), unpacked.to_string());
+    assert_eq!(TestFormat::from_ascii(TEST_ASCII).unwrap(), unpacked);
+    assert_eq!(unpacked.to_ascii().unwrap(), unpacked.to_ascii().unwrap());
 }
 
 mod nested;
 
 #[test]
 fn nested_test() {
-    let pack = nested::outer::Outer::from_str("0123TESTED4567").unwrap();
+    let pack = nested::outer::Outer::from_ascii("0123TESTED4567").unwrap();
     assert_eq!(pack.field1, 123);
     assert_eq!(pack.inner_struct.my_number, 4567);
     assert_eq!(pack.inner_struct.my_string, "TESTED");

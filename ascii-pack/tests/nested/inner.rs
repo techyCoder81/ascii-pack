@@ -6,5 +6,5 @@ pub struct Inner {
     pub my_string: String,
 
     #[pack(size = 4)]
-    pub my_number: usize
+    pub my_number: usize,
 }
