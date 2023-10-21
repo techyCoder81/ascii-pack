@@ -1,29 +1,28 @@
 #![feature(never_type)]
-use kw::max_repeats;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
-use syn::{parse::*, LitInt, LitChar};
+use syn::{parse::*, LitInt, LitChar, ExprClosure, LitStr};
 
 mod kw {
     syn::custom_keyword!(size);
     syn::custom_keyword!(pad_left);
-    syn::custom_keyword!(max_repeats);
+    syn::custom_keyword!(until);
 }
 
 struct AsciiPackArgs {
     size: Option<LitInt>,
     pad_left: Option<LitChar>,
-    max_repeats: Option<LitInt> // TODO: manage repeats
+    until: Option<ExprClosure> // TODO: manage repeats
 }
 
-fn try_parse_repeats(input: &ParseStream) -> Option<LitInt> {
-    match input.parse::<kw::max_repeats>() {
+fn try_parse_until(input: &ParseStream) -> Option<ExprClosure> {
+    match input.parse::<kw::until>() {
         Ok(_) => {},
         Err(_) => return None
     };
-    input.parse::<syn::Token![=]>().expect("Expected an equals for max_repeats!");
-    let max_repeats: syn::LitInt = input.parse().expect("Expected an integer literal for max_repeats!");
+    input.parse::<syn::Token![=]>().expect("Expected an equals for until!");
+    let until: syn::ExprClosure = input.parse().expect("Expected a closure literal for until!");
     unimplemented!("arbitrary repeated sections are not yet implemented!");
     //return Some(max_repeats);
 }
@@ -54,7 +53,7 @@ impl Parse for AsciiPackArgs {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut size = None;
         let mut pad_left = None;
-        let mut max_repeats = None;
+        let mut until = None;
         let mut parsed = false;
 
         while !input.is_empty() {
@@ -78,11 +77,11 @@ impl Parse for AsciiPackArgs {
                 parsed = true;
             }
 
-            if let Some(val) = try_parse_repeats(&input) {
-                if max_repeats.is_some() {
+            if let Some(val) = try_parse_until(&input) {
+                if until.is_some() {
                     panic!("Atrributes may only be specified once per field!");
                 }
-                max_repeats = Some(val);
+                until = Some(val);
                 parsed = true;
             }
 
@@ -92,7 +91,7 @@ impl Parse for AsciiPackArgs {
             }
         }
 
-        Ok(Self { size, pad_left, max_repeats })
+        Ok(Self { size, pad_left, until })
     }
 
     
