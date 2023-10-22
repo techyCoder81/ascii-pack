@@ -12,7 +12,7 @@ const EXAMPLE: &str = "RECORD:
 00 0501//0443//0125//1064//
 01 0045//0002//0073//0234//
 02 0291//0342//2303//0974//
-";
+R001004143321";
 
 /// `0012//`
 #[derive(AsciiPack, PartialEq, Eq, Debug, Default)]
@@ -50,8 +50,14 @@ pub struct MultipleDays {
     #[pack(size = 8)]
     pub _record: String,
 
-    #[pack_vec(until = until::empty)]
+    #[pack_vec(until = until::ascii_alpha)]
     pub days: Vec<Day>,
+
+    #[pack(size = 1)]
+    pub _r: char,
+
+    #[pack_vec(size = 3, until = until::empty)]
+    pub end_list: Vec<String>,
 }
 
 #[test]
@@ -66,6 +72,8 @@ fn test_unsized_nested_repeat() {
         assert_eq!(day.vec.len(), 4);
         num += 1;
     }
+
+    assert_eq!(record.end_list.len(), 4);
 
     let repacked = record.to_ascii().unwrap();
     assert_eq!(EXAMPLE, repacked);
