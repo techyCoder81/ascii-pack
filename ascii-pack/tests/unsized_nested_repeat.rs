@@ -21,14 +21,14 @@ pub struct Item {
     pub id: usize,
 
     #[pack(size = 2)]
-    pub _s_delimeter: String,
+    pub _delimeter: String,
 }
 
 /// `00 0001//0002//0003//0004//\n`
 #[derive(AsciiPack, PartialEq, Eq, Debug, Default)]
 pub struct Day {
     #[pack(size = 2)]
-    pub day: usize,
+    pub day_num: usize,
 
     #[pack(size = 1)]
     pub _spacer: char,
@@ -56,10 +56,17 @@ pub struct MultipleDays {
 
 #[test]
 #[timeout(3000)]
-fn test_nested_repeat() {
+fn test_unsized_nested_repeat() {
     let record = MultipleDays::from_ascii(EXAMPLE).unwrap();
 
-    let repacked = record.to_ascii().unwrap();
+    assert_eq!(record.days.len(), 3);
+    let mut num = 0;
+    for day in record.days.iter() {
+        assert_eq!(day.day_num, num);
+        assert_eq!(day.vec.len(), 4);
+        num += 1;
+    }
 
+    let repacked = record.to_ascii().unwrap();
     assert_eq!(EXAMPLE, repacked);
 }
