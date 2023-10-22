@@ -9,6 +9,7 @@ proc-macro = true
 
 [dependencies]
 anyhow = "1.0.75"
+darling = "0.20.3"
 manyhow = "0.8.1"
 prettyplease = "0.2.15"
 proc-macro2 = "1.0.69"

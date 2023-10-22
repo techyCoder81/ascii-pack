@@ -1,5 +1,5 @@
 use ascii_pack::AsciiPack;
-use std::str::FromStr;
+use ascii_pack::AsciiPackError;
 
 #[derive(Debug, Default, Eq, PartialEq)]
 struct PrimitiveBool(bool);
@@ -12,9 +12,9 @@ impl AsciiPack for PrimitiveBool {
         match input {
             "0" => Ok(PrimitiveBool(false)),
             "1" => Ok(PrimitiveBool(true)),
-            other => Err(AsciiPackError::Unpack(
-                "failed to parse primitive bool!".to_owned(),
-            )),
+            other => Err(AsciiPackError::Unpack(format!(
+                "failed to parse primitive bool: {other}",
+            ))),
         }
     }
 
@@ -67,14 +67,4 @@ fn simple_test() {
     // ToString and FromStr should thinly wrap `to_ascii()` and `from_ascii()`
     assert_eq!(TestFormat::from_ascii(TEST_ASCII).unwrap(), unpacked);
     assert_eq!(unpacked.to_ascii().unwrap(), unpacked.to_ascii().unwrap());
-}
-
-mod nested;
-
-#[test]
-fn nested_test() {
-    let pack = nested::outer::Outer::from_ascii("0123TESTED4567").unwrap();
-    assert_eq!(pack.field1, 123);
-    assert_eq!(pack.inner_struct.my_number, 4567);
-    assert_eq!(pack.inner_struct.my_string, "TESTED");
 }

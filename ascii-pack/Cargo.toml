@@ -8,4 +8,5 @@ crate-type = ["rlib", "dylib"]
 
 [dependencies]
 ascii-pack-macro = { path = "../ascii-pack-macro" }
+ntest_timeout = "0.9.0"
 thiserror = "1.0.50"

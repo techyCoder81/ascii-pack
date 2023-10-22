@@ -1,7 +1,13 @@
-use std::{convert::Infallible, num::ParseIntError, str::FromStr};
+use std::{
+    char::ParseCharError,
+    convert::Infallible,
+    num::{ParseFloatError, ParseIntError},
+    str::{FromStr, ParseBoolError},
+};
 use thiserror::Error;
 
 pub use ascii_pack_macro::*;
+pub mod until;
 
 pub type Result<T> = std::result::Result<T, AsciiPackError>;
 
@@ -22,6 +28,12 @@ pub enum AsciiPackError {
     Pack(String),
     #[error("parse int failed")]
     ParseIntError(#[from] ParseIntError),
+    #[error("parse char failed")]
+    ParseCharError(#[from] ParseCharError),
+    #[error("parse bool failed")]
+    ParseBoolError(#[from] ParseBoolError),
+    #[error("parse float failed")]
+    ParseFloatError(#[from] ParseFloatError),
     #[error("Infallible!")]
     Infallible(#[from] Infallible),
 }
@@ -30,12 +42,21 @@ impl<T> AsciiPack for T
 where
     T: FromStr + ToString,
     AsciiPackError: From<<T as FromStr>::Err>,
+    <T as FromStr>::Err: std::fmt::Debug,
 {
     fn from_ascii(input: &str) -> Result<Self>
     where
         Self: Sized,
     {
-        Ok(Self::from_str(input)?)
+        let result = Self::from_str(input);
+
+        match result {
+            Ok(unpacked) => Ok(unpacked),
+            Err(e) => Err(AsciiPackError::Unpack(format!(
+                "Error unpacking '{}' : {:?}",
+                input, e
+            ))),
+        }
     }
 
     fn to_ascii(&self) -> Result<String> {
