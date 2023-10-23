@@ -1,7 +1,6 @@
 use std::{
     char::ParseCharError,
     convert::Infallible,
-    fmt::Display,
     num::{ParseFloatError, ParseIntError},
     str::{FromStr, ParseBoolError},
 };

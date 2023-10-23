@@ -53,9 +53,7 @@ fn extract_first_generic(ty: &Type) -> syn::Result<Type> {
                 };
 
             let generic_type = match &generics?.arguments {
-                syn::PathArguments::None => {
-                    return Err(syn::Error::new(ty.span(), "Generic is required!"))
-                }
+                syn::PathArguments::None => None,
                 syn::PathArguments::AngleBracketed(brack) => brack
                     .clone()
                     .args
@@ -66,16 +64,17 @@ fn extract_first_generic(ty: &Type) -> syn::Result<Type> {
                     })
                     .filter(|t| t.is_some())
                     .flatten()
-                    .last()
-                    .unwrap(),
-                syn::PathArguments::Parenthesized(paren) => paren
-                    .inputs
-                    .first()
-                    .expect("expected a simple generic")
-                    .clone(),
+                    .last(),
+                syn::PathArguments::Parenthesized(paren) => paren.inputs.first().clone().cloned(),
             };
 
-            Ok(generic_type)
+            match generic_type {
+                Some(t) => Ok(t),
+                None => Err(syn::Error::new(
+                    ty.span(),
+                    "Failed to parse single generic type! The type of this field must be of the literal form `Vec<T>`. Type aliasing is not supported.",
+                )),
+            }
         }
         _ => Err(syn::Error::new(
             ty.span(),
@@ -165,7 +164,7 @@ fn generate_pack_vec_tokens(
                 true => {left_bound += #size;},
                 false => {
                     println!("parsing: {}", slice);
-                    left_bound += value.to_ascii().unwrap().len();
+                    left_bound += value.to_ascii()?.len();
                 }
             }
             let size_used = value.to_ascii()?.len();
