@@ -1,8 +1,3 @@
-# Ascii Pack
-This is a simple proc macro library for serializing/deserializing strictly sized ascii text formats in rust, with interpolation to the intended type.
-
-## Example
-```rust
 use ascii_pack::{until, AsciiPack, AsciiPackError, Static};
 
 #[derive(AsciiPack, PartialEq, Eq, Debug, Default)]
@@ -42,7 +37,7 @@ pub struct Inner {
 }
 
 #[test]
-fn test() {
+fn complex_example() {
     const TEST_ASCII: &str = "0012  TEST\r\nINNER01231697774260 001004143321";
 
     // converting from the ascii format into a struct
@@ -58,5 +53,3 @@ fn test() {
     // converting back to the packed ascii format
     assert_eq!(unpacked.to_ascii().unwrap(), TEST_ASCII);
 }
-
-```

@@ -14,25 +14,35 @@ use syn::{parse::*, LitInt};
 
 #[derive(Debug, FromAttributes)]
 #[darling(attributes(pack))]
-struct AsciiPackArgs {
+struct PackArgs {
     size: usize,
     pad_left: Option<char>,
 }
 
 #[derive(Debug, FromAttributes)]
 #[darling(attributes(pack_vec))]
-struct AsciiPackVecArgs {
+struct PackVecArgs {
     until: Expr,
     pad_left: Option<char>,
     size: Option<LitInt>, // TODO: don't require this
 }
 
-impl Parse for AsciiPackVecArgs {
+#[derive(Debug, FromAttributes)]
+#[darling(attributes(pack_static))]
+struct PackStaticArgs {
+    text: String,
+}
+
+impl Parse for PackVecArgs {
     fn parse(_input: ParseStream) -> syn::Result<Self> {
         unimplemented!()
     }
 }
 
+/// Utility function to extract the type `T` from a single-type
+/// generic such as `Vec<T>`. This assumes that the field is defined
+/// literally as `Vec<T>`, with no type aliasing, as a type aliased
+/// generic (`type MyVec = Vec<T>;`) will not work with this logic.
 fn extract_first_generic(ty: &Type) -> syn::Result<Type> {
     match ty {
         syn::Type::Path(type_path) => {
@@ -74,10 +84,12 @@ fn extract_first_generic(ty: &Type) -> syn::Result<Type> {
     }
 }
 
+/// Generates the `to_ascii` and `from_ascii` tokens
+/// for pack_vec fields
 fn generate_pack_tokens(
     mut from_ascii_tokens: TokenStream2,
     mut to_ascii_tokens: TokenStream2,
-    args: AsciiPackArgs,
+    args: PackArgs,
     field: &Field,
 ) -> syn::Result<(TokenStream2, TokenStream2)> {
     let name = &field.ident.clone().unwrap();
@@ -120,10 +132,12 @@ fn generate_pack_tokens(
     Ok((from_ascii_tokens, to_ascii_tokens))
 }
 
+/// Generates the `to_ascii` and `from_ascii` tokens
+/// for pack_vec fields
 fn generate_pack_vec_tokens(
     mut from_ascii_tokens: TokenStream2,
     mut to_ascii_tokens: TokenStream2,
-    args: AsciiPackVecArgs,
+    args: PackVecArgs,
     field: &Field,
 ) -> syn::Result<(TokenStream2, TokenStream2)> {
     let ty = &field.ty;
@@ -194,6 +208,89 @@ fn generate_pack_vec_tokens(
     Ok((from_ascii_tokens, to_ascii_tokens))
 }
 
+/// Generates the `to_ascii` and `from_ascii` tokens
+/// for pack_static fields
+fn generate_pack_static_tokens(
+    mut from_ascii_tokens: TokenStream2,
+    mut to_ascii_tokens: TokenStream2,
+    args: PackStaticArgs,
+) -> syn::Result<(TokenStream2, TokenStream2)> {
+    let static_value = args.text;
+    let size = static_value.len();
+
+    from_ascii_tokens = quote! {
+        #from_ascii_tokens
+        // no need to set the field - default will be fine.
+        left_bound += #size;
+    };
+
+    to_ascii_tokens = quote! {
+        #to_ascii_tokens
+        // push the static string value onto the output.
+        result.push_str(#static_value);
+    };
+
+    Ok((from_ascii_tokens, to_ascii_tokens))
+}
+
+/// Process the given field and output the to_ascii
+/// and from_ascii tokens.
+///
+/// Note: this Field may include attributes from other macros
+/// invoked by the user that are not relevant to AsciiPack.
+fn process_field(
+    mut from_ascii_tokens: TokenStream2,
+    mut to_ascii_tokens: TokenStream2,
+    field: &Field,
+) -> syn::Result<(TokenStream2, TokenStream2)> {
+    let mut already_parsed = false;
+    for attr in field.attrs.iter() {
+        let name = attr.meta.path().require_ident()?.to_string();
+        let matched = match name.as_str() {
+            "pack_ignore" => {
+                // leave the default value
+                true
+            }
+            "pack" => {
+                let args: PackArgs = FromAttributes::from_attributes(&field.attrs)?;
+                let (from, to) =
+                    generate_pack_tokens(from_ascii_tokens, to_ascii_tokens, args, &field)?;
+                from_ascii_tokens = from;
+                to_ascii_tokens = to;
+                true
+            }
+            "pack_vec" => {
+                let args: PackVecArgs = FromAttributes::from_attributes(&field.attrs)?;
+                let (from, to) =
+                    generate_pack_vec_tokens(from_ascii_tokens, to_ascii_tokens, args, &field)?;
+                from_ascii_tokens = from;
+                to_ascii_tokens = to;
+                true
+            }
+            "pack_static" => {
+                let args: PackStaticArgs = FromAttributes::from_attributes(&field.attrs)?;
+                let (from, to) =
+                    generate_pack_static_tokens(from_ascii_tokens, to_ascii_tokens, args)?;
+                from_ascii_tokens = from;
+                to_ascii_tokens = to;
+                true
+            }
+            _ => false, // attribute not relevant to ascii pack
+        };
+
+        if matched && already_parsed {
+            return Err(syn::Error::new(
+                field.span(),
+                "Exactly one AsciiPack attribute is required on all fields!",
+            ));
+        }
+
+        already_parsed = true;
+    }
+
+    Ok((from_ascii_tokens, to_ascii_tokens))
+}
+
 /// This macro is used to derive ascii format packing metadata and relevant functions to
 /// pack and unpack structured, sized data from strongly sized ascii formats into native
 /// rust types, bidirectionally.
@@ -221,7 +318,7 @@ fn generate_pack_vec_tokens(
 ///     pub trailing_vec: Vec<char>,
 /// }
 /// ```
-#[manyhow(proc_macro_derive(AsciiPack, attributes(pack, pack_ignore, pack_vec)))]
+#[manyhow(proc_macro_derive(AsciiPack, attributes(pack, pack_ignore, pack_vec, pack_static)))]
 pub fn derive_ascii_pack(item: proc_macro::TokenStream) -> syn::Result<proc_macro::TokenStream> {
     let input = syn::parse::<DeriveInput>(item)?;
     let data = match input.data {
@@ -242,37 +339,9 @@ pub fn derive_ascii_pack(item: proc_macro::TokenStream) -> syn::Result<proc_macr
     };
 
     for field in data.fields.iter() {
-        let attr = field
-            .attrs
-            .iter()
-            .find(|attr| {
-                attr.meta.path().is_ident("pack")
-                    || attr.meta.path().is_ident("pack_ignore")
-                    || attr.meta.path().is_ident("pack_vec")
-            })
-            .expect("A `pack`, `pack_ignore`, or `pack_vec` attribute is required on all fields!");
-
-        match attr.meta.path().get_ident().unwrap().to_string().as_str() {
-            "pack_ignore" => {
-                // leave the default value
-                continue;
-            }
-            "pack" => {
-                let args: AsciiPackArgs = FromAttributes::from_attributes(&field.attrs)?;
-                let (from, to) =
-                    generate_pack_tokens(from_ascii_tokens, to_ascii_tokens, args, &field)?;
-                from_ascii_tokens = from;
-                to_ascii_tokens = to;
-            }
-            "pack_vec" => {
-                let args: AsciiPackVecArgs = FromAttributes::from_attributes(&field.attrs)?;
-                let (from, to) =
-                    generate_pack_vec_tokens(from_ascii_tokens, to_ascii_tokens, args, &field)?;
-                from_ascii_tokens = from;
-                to_ascii_tokens = to;
-            }
-            _ => {}
-        }
+        let (from, to) = process_field(from_ascii_tokens, to_ascii_tokens, field)?;
+        from_ascii_tokens = from;
+        to_ascii_tokens = to;
     }
 
     from_ascii_tokens = quote! {

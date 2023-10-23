@@ -1,6 +1,7 @@
 use std::{
     char::ParseCharError,
     convert::Infallible,
+    fmt::Display,
     num::{ParseFloatError, ParseIntError},
     str::{FromStr, ParseBoolError},
 };
@@ -61,5 +62,17 @@ where
 
     fn to_ascii(&self) -> Result<String> {
         Ok(self.to_string())
+    }
+}
+
+/// This (empty) struct represents a statically-sized ascii field.
+/// It's text representation is derived from the `pack_static` attribute
+/// assigned to the field definition, and it otherwise contains no data.
+#[derive(Default, Eq, PartialEq, Debug)]
+pub struct Static;
+
+impl Static {
+    pub fn new() -> Static {
+        Static {}
     }
 }
