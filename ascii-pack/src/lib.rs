@@ -19,6 +19,12 @@ pub trait AsciiPack {
     fn to_ascii(&self) -> Result<String>;
 }
 
+pub trait AsciiPackUnsized {
+    fn from_ascii_unsized(input: &str) -> Result<(Self, usize)>
+    where
+        Self: Sized;
+}
+
 #[derive(Error, Debug)]
 pub enum AsciiPackError {
     #[error("unknown error: {0}")]

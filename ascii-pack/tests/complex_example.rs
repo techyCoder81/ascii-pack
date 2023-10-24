@@ -1,4 +1,4 @@
-use ascii_pack::{until, AsciiPack, AsciiPackError, Static};
+use ascii_pack::{until, AsciiPack, AsciiPackError, AsciiPackUnsized, Static};
 use strum::{Display, EnumString};
 
 #[derive(PartialEq, Eq, Debug, Default, EnumString, Clone, Display)]
@@ -26,7 +26,7 @@ struct TestFormat {
     #[pack_static(text = "\r\n")]
     pub line_ending1: Static,
 
-    #[pack(size = 9)]
+    #[pack]
     pub nested_struct: Inner,
 
     #[pack(size = 10)]

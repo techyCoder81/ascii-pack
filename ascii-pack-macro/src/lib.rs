@@ -15,7 +15,7 @@ use syn::{parse::*, LitInt};
 #[derive(Debug, FromAttributes)]
 #[darling(attributes(pack))]
 struct PackArgs {
-    size: usize,
+    size: Option<usize>,
     pad_left: Option<char>,
 }
 
@@ -95,36 +95,58 @@ fn generate_pack_tokens(
     let ty = &field.ty;
     let lit_name = name.to_string();
 
-    let size_lit = args.size;
+    let size = args.size;
     //let size = size_lit.base10_parse::<usize>().unwrap();
     //let right_bound = left_bound + size - 1;
 
     let pad_left = args.pad_left.unwrap_or('0');
 
-    from_ascii_tokens = quote! {
-        #from_ascii_tokens
-        result.#name = #ty::from_ascii(&input[left_bound..=(left_bound + #size_lit - 1)])?;
-        left_bound += #size_lit;
-    };
-
-    to_ascii_tokens = quote! {
-        #to_ascii_tokens
-        let mut substr = &self.#name.to_ascii()?;
-        if substr.len() > #size_lit {
-            return Err(AsciiPackError::Pack(
-                format!("Size of item in {} was too large - item: {}, expected size: {}", #lit_name, substr, #size_lit)));
+    match size {
+        Some(size_lit) => {
+            from_ascii_tokens = quote! {
+                #from_ascii_tokens
+                result.#name = #ty::from_ascii(&input[left_bound..=(left_bound + #size_lit - 1)])?;
+                left_bound += #size_lit;
+            };
         }
+        None => {
+            from_ascii_tokens = quote! {
+                #from_ascii_tokens
+                let (field_value, calculated_size) = #ty::from_ascii_unsized(&input[left_bound..])?;
+                result.#name = field_value;
+                left_bound += calculated_size;
+            };
+        }
+    }
 
-        let padding_size = #size_lit - substr.len();
-        if padding_size > 0 {
-            let mut pad_str = String::new();
-            for _ in 0..padding_size {
-                pad_str.push(#pad_left);
-            }
-            pad_str.push_str(&substr);
-            result.push_str(&pad_str)
-        } else {
-            result.push_str(&substr);
+    match size {
+        Some(size) => {
+            to_ascii_tokens = quote! {
+                #to_ascii_tokens
+                let mut substr = &self.#name.to_ascii()?;
+                if substr.len() > #size {
+                    return Err(AsciiPackError::Pack(
+                        format!("Size of item in {} was too large - item: {}, expected size: {}", #lit_name, substr, #size)));
+                }
+                let padding_size = #size - substr.len();
+                if padding_size > 0 {
+                    let mut pad_str = String::new();
+                    for _ in 0..padding_size {
+                        pad_str.push(#pad_left);
+                    }
+                    pad_str.push_str(&substr);
+                    result.push_str(&pad_str)
+                } else {
+                    result.push_str(&substr);
+                }
+            };
+        }
+        None => {
+            to_ascii_tokens = quote! {
+                #to_ascii_tokens
+                let mut substr = &self.#name.to_ascii()?;
+                result.push_str(&substr);
+            };
         }
     };
 
@@ -351,7 +373,7 @@ pub fn derive_ascii_pack(item: proc_macro::TokenStream) -> syn::Result<proc_macr
         to_ascii_tokens = to;
     }
 
-    from_ascii_tokens = quote! {
+    let final_from_ascii_tokens = quote! {
         #from_ascii_tokens
         return Ok(result)
     };
@@ -364,11 +386,18 @@ pub fn derive_ascii_pack(item: proc_macro::TokenStream) -> syn::Result<proc_macr
     let tokens = quote! {
         impl ::ascii_pack::AsciiPack for #struc {
             fn from_ascii(input: &str) -> Result<Self, ::ascii_pack::AsciiPackError> {
-                #from_ascii_tokens
+                #final_from_ascii_tokens
             }
 
             fn to_ascii(&self) -> Result<String, ::ascii_pack::AsciiPackError> {
                 #to_ascii_tokens
+            }
+        }
+
+        impl ::ascii_pack::AsciiPackUnsized for #struc {
+            fn from_ascii_unsized(input: &str) -> Result<(Self, usize), ::ascii_pack::AsciiPackError> {
+                #from_ascii_tokens
+                Ok((result, left_bound))
             }
         }
     };
