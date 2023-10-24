@@ -280,14 +280,22 @@ fn process_field(
         if matched && already_parsed {
             return Err(syn::Error::new(
                 field.span(),
-                "Exactly one AsciiPack attribute is required on all fields!",
+                "Only one AsciiPack attribute is allowed on all fields!",
             ));
         }
 
-        already_parsed = true;
+        if matched {
+            already_parsed = true;
+        }
     }
 
-    Ok((from_ascii_tokens, to_ascii_tokens))
+    match already_parsed {
+        true => Ok((from_ascii_tokens, to_ascii_tokens)),
+        false => Err(syn::Error::new(
+            field.span(),
+            "At least one AsciiPack attribute is required on all fields!",
+        )),
+    }
 }
 
 /// This macro is used to derive ascii format packing metadata and relevant functions to

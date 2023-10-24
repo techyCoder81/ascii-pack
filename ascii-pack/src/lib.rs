@@ -7,6 +7,7 @@ use std::{
 use thiserror::Error;
 
 pub use ascii_pack_macro::*;
+pub use strum;
 pub mod until;
 
 pub type Result<T> = std::result::Result<T, AsciiPackError>;
@@ -34,8 +35,12 @@ pub enum AsciiPackError {
     ParseBoolError(#[from] ParseBoolError),
     #[error("parse float failed")]
     ParseFloatError(#[from] ParseFloatError),
-    #[error("Infallible!")]
+    #[error("Infallible")]
     Infallible(#[from] Infallible),
+    #[error("Strum parse error")]
+    StrumParseError(#[from] strum::ParseError),
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
 }
 
 impl<T> AsciiPack for T
@@ -67,7 +72,7 @@ where
 /// This (empty) struct represents a statically-sized ascii field.
 /// It's text representation is derived from the `pack_static` attribute
 /// assigned to the field definition, and it otherwise contains no data.
-#[derive(Default, Eq, PartialEq, Debug)]
+#[derive(Default, Eq, PartialEq, Debug, Clone, Copy)]
 pub struct Static;
 
 impl Static {

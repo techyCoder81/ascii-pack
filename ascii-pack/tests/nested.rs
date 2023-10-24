@@ -15,6 +15,7 @@ pub struct Outer {
     #[pack(size = 4)]
     pub field1: u32,
 
+    /// Doc comment
     #[pack(size = 10)]
     pub inner_struct: Inner,
 }

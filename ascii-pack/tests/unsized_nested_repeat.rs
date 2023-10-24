@@ -46,8 +46,7 @@ pub struct Day {
 /// `02 0291//0342//2303//0974//\n`
 #[derive(AsciiPack, PartialEq, Eq, Debug, Default)]
 pub struct MultipleDays {
-    // TODO: #[pack_static(text = "RECORD:\n")]
-    #[pack(size = 8)]
+    #[pack_static(text = "RECORD:\n")]
     pub _record: String,
 
     #[pack_vec(until = until::ascii_alpha)]

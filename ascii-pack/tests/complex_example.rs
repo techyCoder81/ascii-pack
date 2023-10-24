@@ -1,6 +1,18 @@
 use ascii_pack::{until, AsciiPack, AsciiPackError, Static};
+use strum::{Display, EnumString};
 
-#[derive(AsciiPack, PartialEq, Eq, Debug, Default)]
+#[derive(PartialEq, Eq, Debug, Default, EnumString, Clone, Display)]
+enum Kind {
+    #[strum(serialize = "   FAKE")]
+    Fake,
+    #[strum(serialize = "   REAL")]
+    Real,
+    #[default]
+    #[strum(serialize = "UNKNOWN")]
+    Unknown,
+}
+
+#[derive(AsciiPack, PartialEq, Eq, Debug, Default, Clone)]
 struct TestFormat {
     #[pack(size = 4)]
     pub padded_number: u32,
@@ -8,8 +20,8 @@ struct TestFormat {
     #[pack_ignore]
     pub ignored_field: Option<usize>,
 
-    #[pack(size = 6, pad_left = ' ')]
-    pub kind: String,
+    #[pack(size = 7, pad_left = ' ')]
+    pub kind: Kind,
 
     #[pack_static(text = "\r\n")]
     pub line_ending1: Static,
@@ -27,7 +39,7 @@ struct TestFormat {
     pub vec: Vec<String>,
 }
 
-#[derive(AsciiPack, PartialEq, Eq, Debug, Default)]
+#[derive(AsciiPack, PartialEq, Eq, Debug, Default, Clone)]
 pub struct Inner {
     #[pack(size = 5, pad_left = ' ')]
     pub my_string: String,
@@ -38,7 +50,7 @@ pub struct Inner {
 
 #[test]
 fn complex_example() {
-    const TEST_ASCII: &str = "0012  TEST\r\nINNER01231697774260 001004143321";
+    const TEST_ASCII: &str = "0012   FAKE\r\nINNER01231697774260 001004143321";
 
     // converting from the ascii format into a struct
     let unpacked = TestFormat::from_ascii(TEST_ASCII).unwrap();
@@ -48,7 +60,7 @@ fn complex_example() {
     assert_eq!(unpacked.vec.len(), 3);
     assert_eq!(unpacked.nested_struct.my_string, "INNER");
     assert_eq!(unpacked.nested_struct.my_number, 123);
-    assert_eq!(unpacked.kind, "  TEST");
+    assert_eq!(unpacked.kind, Kind::Fake);
 
     // converting back to the packed ascii format
     assert_eq!(unpacked.to_ascii().unwrap(), TEST_ASCII);
